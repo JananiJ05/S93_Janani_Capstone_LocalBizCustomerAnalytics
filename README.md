@@ -103,3 +103,6 @@ The completed project will provide a customer analytics solution that helps loca
 ## Project Repository
 
 This repository will contain the project documentation, analysis files, visualizations, and other materials developed during the capstone project.
+## Repository Status
+
+The project is currently under development. Documentation, analysis, visualizations, and project deliverables will be added as the capstone project progresses.
