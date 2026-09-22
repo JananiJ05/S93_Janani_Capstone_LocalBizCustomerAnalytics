@@ -107,6 +107,110 @@ app.post("/api/orders", async (req, res) => {
 });
 
 // =========================
+// PUT API ENDPOINTS
+// =========================
+
+// PUT / Update a customer
+app.put("/api/customers/:id", async (req, res) => {
+  try {
+    const customer = await Customer.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!customer) {
+      return res.status(404).json({
+        message: "Customer not found",
+      });
+    }
+
+    res.json(customer);
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
+// PUT / Update an order
+app.put("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
+
+    res.json(order);
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
+// =========================
+// DELETE API ENDPOINTS
+// =========================
+
+// DELETE a customer
+app.delete("/api/customers/:id", async (req, res) => {
+  try {
+    const customer = await Customer.findByIdAndDelete(req.params.id);
+
+    if (!customer) {
+      return res.status(404).json({
+        message: "Customer not found",
+      });
+    }
+
+    res.json({
+      message: "Customer deleted successfully",
+      customer,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
+// DELETE an order
+app.delete("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
+
+    res.json({
+      message: "Order deleted successfully",
+      order,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
+// =========================
 // START SERVER
 // =========================
 
