@@ -11,6 +11,7 @@ const app = express();
 
 app.use(express.json());
 
+// MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
@@ -20,12 +21,14 @@ mongoose
     console.error("MongoDB connection failed:", error.message);
   });
 
+// Home route
 app.get("/", (req, res) => {
   res.json({
     message: "LocalBiz Customer Analytics API is running",
   });
 });
 
+// GET all customers
 app.get("/api/customers", async (req, res) => {
   try {
     const customers = await Customer.find();
@@ -35,33 +38,62 @@ app.get("/api/customers", async (req, res) => {
   }
 });
 
+// GET a single customer by ID
+app.get("/api/customers/:id", async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.params.id);
+
+    if (!customer) {
+      return res.status(404).json({
+        message: "Customer not found",
+      });
+    }
+
+    res.json(customer);
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
+// POST a new customer
 app.post("/api/customers", async (req, res) => {
   try {
     const customer = await Customer.create(req.body);
     res.status(201).json(customer);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({
+      message: error.message,
+    });
   }
 });
 
+// GET all orders
 app.get("/api/orders", async (req, res) => {
   try {
     const orders = await Order.find().populate("customer");
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error.message,
+    });
   }
 });
 
+// POST a new order
 app.post("/api/orders", async (req, res) => {
   try {
     const order = await Order.create(req.body);
     res.status(201).json(order);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({
+      message: error.message,
+    });
   }
 });
 
+// Start server
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
