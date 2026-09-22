@@ -9,6 +9,7 @@ dotenv.config();
 
 const app = express();
 
+// Middleware
 app.use(express.json());
 
 // MongoDB connection
@@ -28,13 +29,19 @@ app.get("/", (req, res) => {
   });
 });
 
+// =========================
+// GET API ENDPOINTS
+// =========================
+
 // GET all customers
 app.get("/api/customers", async (req, res) => {
   try {
     const customers = await Customer.find();
     res.json(customers);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error.message,
+    });
   }
 });
 
@@ -57,18 +64,6 @@ app.get("/api/customers/:id", async (req, res) => {
   }
 });
 
-// POST a new customer
-app.post("/api/customers", async (req, res) => {
-  try {
-    const customer = await Customer.create(req.body);
-    res.status(201).json(customer);
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
-  }
-});
-
 // GET all orders
 app.get("/api/orders", async (req, res) => {
   try {
@@ -81,10 +76,28 @@ app.get("/api/orders", async (req, res) => {
   }
 });
 
+// =========================
+// POST API ENDPOINTS
+// =========================
+
+// POST a new customer
+app.post("/api/customers", async (req, res) => {
+  try {
+    const customer = await Customer.create(req.body);
+
+    res.status(201).json(customer);
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
 // POST a new order
 app.post("/api/orders", async (req, res) => {
   try {
     const order = await Order.create(req.body);
+
     res.status(201).json(order);
   } catch (error) {
     res.status(400).json({
@@ -93,7 +106,10 @@ app.post("/api/orders", async (req, res) => {
   }
 });
 
-// Start server
+// =========================
+// START SERVER
+// =========================
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
