@@ -9,10 +9,9 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
+
 app.use(express.json());
 
-// MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
@@ -22,9 +21,7 @@ mongoose
     console.error("MongoDB connection failed:", error.message);
   });
 
-// =========================
-// HOME ROUTE
-// =========================
+
 
 app.get("/", (req, res) => {
   res.json({
@@ -32,11 +29,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// =========================
-// GET API ENDPOINTS
-// =========================
 
-// GET all customers
 app.get("/api/customers", async (req, res) => {
   try {
     const customers = await Customer.find();
@@ -48,7 +41,7 @@ app.get("/api/customers", async (req, res) => {
   }
 });
 
-// GET customer by ID
+
 app.get("/api/customers/:id", async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
@@ -67,7 +60,7 @@ app.get("/api/customers/:id", async (req, res) => {
   }
 });
 
-// GET all orders
+
 app.get("/api/orders", async (req, res) => {
   try {
     const orders = await Order.find().populate("customer");
@@ -79,11 +72,8 @@ app.get("/api/orders", async (req, res) => {
   }
 });
 
-// =========================
-// POST API ENDPOINTS
-// =========================
 
-// POST a new customer
+
 app.post("/api/customers", async (req, res) => {
   try {
     const customer = await Customer.create(req.body);
@@ -96,7 +86,7 @@ app.post("/api/customers", async (req, res) => {
   }
 });
 
-// POST a new order
+
 app.post("/api/orders", async (req, res) => {
   try {
     const order = await Order.create(req.body);
@@ -109,11 +99,8 @@ app.post("/api/orders", async (req, res) => {
   }
 });
 
-// =========================
-// PUT API ENDPOINTS
-// =========================
 
-// PUT - update customer by ID
+
 app.put("/api/customers/:id", async (req, res) => {
   try {
     const customer = await Customer.findByIdAndUpdate(
@@ -139,7 +126,7 @@ app.put("/api/customers/:id", async (req, res) => {
   }
 });
 
-// PUT - update order by ID
+
 app.put("/api/orders/:id", async (req, res) => {
   try {
     const order = await Order.findByIdAndUpdate(
@@ -165,9 +152,51 @@ app.put("/api/orders/:id", async (req, res) => {
   }
 });
 
-// =========================
-// START SERVER
-// =========================
+
+app.delete("/api/customers/:id", async (req, res) => {
+  try {
+    const customer = await Customer.findByIdAndDelete(req.params.id);
+
+    if (!customer) {
+      return res.status(404).json({
+        message: "Customer not found",
+      });
+    }
+
+    res.json({
+      message: "Customer deleted successfully",
+      customer,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
+
+app.delete("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
+
+    res.json({
+      message: "Order deleted successfully",
+      order,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
+
 
 const PORT = process.env.PORT || 5000;
 
