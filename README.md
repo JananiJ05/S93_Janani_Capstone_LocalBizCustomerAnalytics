@@ -106,3 +106,12 @@ This repository will contain the project documentation, analysis files, visualiz
 ## Repository Status
 
 The project is currently under development. Documentation, analysis, visualizations, and project deliverables will be added as the capstone project progresses.
+
+
+## Mock UX Design
+
+Figma Link:
+https://www.figma.com/make/b3tq8R2Y4feiExJLOh5wHh/LocalBtizx-Customer?fullscreen=1&t=qtyMIkXB2pXuS5BV-1&code-node-id=0-6
+
+This mock UX demonstrates the application's primary screens,
+navigation flow, and major user journeys.
