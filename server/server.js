@@ -22,7 +22,10 @@ mongoose
     console.error("MongoDB connection failed:", error.message);
   });
 
-// Home route
+// =========================
+// HOME ROUTE
+// =========================
+
 app.get("/", (req, res) => {
   res.json({
     message: "LocalBiz Customer Analytics API is running",
@@ -45,7 +48,7 @@ app.get("/api/customers", async (req, res) => {
   }
 });
 
-// GET a single customer by ID
+// GET customer by ID
 app.get("/api/customers/:id", async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
@@ -99,6 +102,62 @@ app.post("/api/orders", async (req, res) => {
     const order = await Order.create(req.body);
 
     res.status(201).json(order);
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
+// =========================
+// PUT API ENDPOINTS
+// =========================
+
+// PUT - update customer by ID
+app.put("/api/customers/:id", async (req, res) => {
+  try {
+    const customer = await Customer.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!customer) {
+      return res.status(404).json({
+        message: "Customer not found",
+      });
+    }
+
+    res.json(customer);
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
+// PUT - update order by ID
+app.put("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
+
+    res.json(order);
   } catch (error) {
     res.status(400).json({
       message: error.message,
