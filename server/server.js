@@ -9,7 +9,6 @@ dotenv.config();
 
 const app = express();
 
-
 app.use(express.json());
 
 mongoose
@@ -22,7 +21,7 @@ mongoose
   });
 
 
-
+// Home route
 app.get("/", (req, res) => {
   res.json({
     message: "LocalBiz Customer Analytics API is running",
@@ -30,6 +29,7 @@ app.get("/", (req, res) => {
 });
 
 
+// Get all customers
 app.get("/api/customers", async (req, res) => {
   try {
     const customers = await Customer.find();
@@ -42,6 +42,7 @@ app.get("/api/customers", async (req, res) => {
 });
 
 
+// Get one customer by ID
 app.get("/api/customers/:id", async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
@@ -61,6 +62,27 @@ app.get("/api/customers/:id", async (req, res) => {
 });
 
 
+// Get all orders belonging to a specific customer
+app.get("/api/customers/:id/orders", async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.params.id).populate("orders");
+
+    if (!customer) {
+      return res.status(404).json({
+        message: "Customer not found",
+      });
+    }
+
+    res.json(customer.orders);
+  } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+});
+
+
+// Get all orders with customer details
 app.get("/api/orders", async (req, res) => {
   try {
     const orders = await Order.find().populate("customer");
@@ -73,7 +95,7 @@ app.get("/api/orders", async (req, res) => {
 });
 
 
-
+// Create a customer
 app.post("/api/customers", async (req, res) => {
   try {
     const customer = await Customer.create(req.body);
@@ -87,6 +109,7 @@ app.post("/api/customers", async (req, res) => {
 });
 
 
+// Create an order
 app.post("/api/orders", async (req, res) => {
   try {
     const order = await Order.create(req.body);
@@ -100,7 +123,7 @@ app.post("/api/orders", async (req, res) => {
 });
 
 
-
+// Update a customer
 app.put("/api/customers/:id", async (req, res) => {
   try {
     const customer = await Customer.findByIdAndUpdate(
@@ -127,6 +150,7 @@ app.put("/api/customers/:id", async (req, res) => {
 });
 
 
+// Update an order
 app.put("/api/orders/:id", async (req, res) => {
   try {
     const order = await Order.findByIdAndUpdate(
@@ -153,6 +177,7 @@ app.put("/api/orders/:id", async (req, res) => {
 });
 
 
+// Delete a customer
 app.delete("/api/customers/:id", async (req, res) => {
   try {
     const customer = await Customer.findByIdAndDelete(req.params.id);
@@ -175,6 +200,7 @@ app.delete("/api/customers/:id", async (req, res) => {
 });
 
 
+// Delete an order
 app.delete("/api/orders/:id", async (req, res) => {
   try {
     const order = await Order.findByIdAndDelete(req.params.id);
@@ -197,7 +223,7 @@ app.delete("/api/orders/:id", async (req, res) => {
 });
 
 
-
+// Start server
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
