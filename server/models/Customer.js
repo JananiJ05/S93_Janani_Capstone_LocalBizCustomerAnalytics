@@ -38,7 +38,16 @@ const customerSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+// One Customer can have many Orders
+customerSchema.virtual("orders", {
+  ref: "Order",
+  localField: "_id",
+  foreignField: "customer",
+});
 
 module.exports = mongoose.model("Customer", customerSchema);
