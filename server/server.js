@@ -11,51 +11,79 @@ const User = require("./models/User");
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-const JWT_SECRET = process.env.JWT_SECRET || "janani_localbiz_auth_secret_2026";
+const JWT_SECRET =
+  process.env.JWT_SECRET || "janani_localbiz_auth_secret_2026";
 
 app.use(express.json());
 
-
+// --------------------------------------------------
 // MongoDB connection
+// --------------------------------------------------
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("MongoDB connected successfully");
   })
   .catch((error) => {
-    console.error("MongoDB connection failed:", error.message);
+    console.error("MongoDB connection error:", error.message);
   });
 
-
-// Home route
-app.get("/", (req, res) => {
-  res.json({
-    message: "LocalBiz Customer Analytics API is running",
-  });
-});
-
-
-// =====================================================
-// AUTHENTICATION
-// =====================================================
-
-// Register a new user
-app.post("/api/auth/register", async (req, res) => {
+// --------------------------------------------------
+// JWT authentication middleware
+// --------------------------------------------------
+const protect = (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const authHeader = req.headers.authorization;
 
-    if (!username || !password) {
-      return res.status(400).json({
-        message: "Username and password are required",
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        message: "Access denied. JWT token is required.",
       });
     }
 
-    const existingUser = await User.findOne({ username });
+    const token = authHeader.split(" ")[1];
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    req.user = decoded;
+
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      message: "Invalid or expired JWT token.",
+    });
+  }
+};
+
+// --------------------------------------------------
+// Home route
+// --------------------------------------------------
+app.get("/", (req, res) => {
+  res.send("Local Business Customer Analytics API is running");
+});
+
+// --------------------------------------------------
+// Register
+// --------------------------------------------------
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        message: "Username, email, and password are required.",
+      });
+    }
+
+    const existingUser = await User.findOne({
+      $or: [{ username }, { email }],
+    });
 
     if (existingUser) {
       return res.status(409).json({
-        message: "Username already exists",
+        message: "Username or email already exists.",
       });
     }
 
@@ -63,279 +91,271 @@ app.post("/api/auth/register", async (req, res) => {
 
     const user = await User.create({
       username,
+      email,
       password: hashedPassword,
     });
 
-    res.status(201).json({
-      message: "User registered successfully",
+    return res.status(201).json({
+      message: "User registered successfully.",
       user: {
         id: user._id,
         username: user.username,
+        email: user.email,
       },
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
+    console.error("Registration error:", error.message);
+
+    return res.status(500).json({
+      message: "Registration failed.",
     });
   }
 });
 
-
-// Login user
+// --------------------------------------------------
+// Login
+// --------------------------------------------------
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, email, password } = req.body;
 
-    if (!username || !password) {
+    if ((!username && !email) || !password) {
       return res.status(400).json({
-        message: "Username and password are required",
+        message: "Username or email and password are required.",
       });
     }
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne(
+      username ? { username } : { email }
+    );
 
     if (!user) {
       return res.status(401).json({
-        message: "Invalid username or password",
+        message: "Invalid credentials.",
       });
     }
 
-    const passwordMatch = await bcrypt.compare(
+    const passwordMatches = await bcrypt.compare(
       password,
       user.password
     );
 
-    if (!passwordMatch) {
+    if (!passwordMatches) {
       return res.status(401).json({
-        message: "Invalid username or password",
+        message: "Invalid credentials.",
       });
     }
 
     const token = jwt.sign(
       {
-        userId: user._id,
+        id: user._id,
         username: user.username,
       },
       JWT_SECRET,
-      {
-        expiresIn: "1h",
-      }
+      { expiresIn: "1h" }
     );
 
-    res.json({
-      message: "Login successful",
+    return res.status(200).json({
+      message: "Login successful.",
       token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+      },
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
+    console.error("Login error:", error.message);
+
+    return res.status(500).json({
+      message: "Login failed.",
     });
   }
 });
 
-
-// =====================================================
-// CUSTOMER APIs
-// =====================================================
-
-// Get all customers
-app.get("/api/customers", async (req, res) => {
+// --------------------------------------------------
+// Customers - protected routes
+// --------------------------------------------------
+app.get("/api/customers", protect, async (req, res) => {
   try {
     const customers = await Customer.find();
-    res.json(customers);
+    return res.status(200).json(customers);
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
+    console.error("Fetch customers error:", error.message);
+
+    return res.status(500).json({
+      message: "Failed to fetch customers.",
     });
   }
 });
 
-
-// Get one customer by ID
-app.get("/api/customers/:id", async (req, res) => {
+app.get("/api/customers/:id", protect, async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
 
     if (!customer) {
       return res.status(404).json({
-        message: "Customer not found",
+        message: "Customer not found.",
       });
     }
 
-    res.json(customer);
+    return res.status(200).json(customer);
   } catch (error) {
-    res.status(400).json({
-      message: error.message,
+    return res.status(400).json({
+      message: "Invalid customer ID.",
     });
   }
 });
 
-
-// Get all orders belonging to a specific customer
-app.get("/api/customers/:id/orders", async (req, res) => {
-  try {
-    const customer = await Customer.findById(req.params.id).populate("orders");
-
-    if (!customer) {
-      return res.status(404).json({
-        message: "Customer not found",
-      });
-    }
-
-    res.json(customer.orders);
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
-  }
-});
-
-
-// Get all orders with customer details
-app.get("/api/orders", async (req, res) => {
-  try {
-    const orders = await Order.find().populate("customer");
-    res.json(orders);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-});
-
-
-// Create a customer
-app.post("/api/customers", async (req, res) => {
+app.post("/api/customers", protect, async (req, res) => {
   try {
     const customer = await Customer.create(req.body);
 
-    res.status(201).json(customer);
+    return res.status(201).json(customer);
   } catch (error) {
-    res.status(400).json({
-      message: error.message,
+    console.error("Create customer error:", error.message);
+
+    return res.status(400).json({
+      message: "Failed to create customer.",
     });
   }
 });
 
-
-// Create an order
-app.post("/api/orders", async (req, res) => {
-  try {
-    const order = await Order.create(req.body);
-
-    res.status(201).json(order);
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
-  }
-});
-
-
-// Update a customer
-app.put("/api/customers/:id", async (req, res) => {
+app.put("/api/customers/:id", protect, async (req, res) => {
   try {
     const customer = await Customer.findByIdAndUpdate(
       req.params.id,
       req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
+      { new: true, runValidators: true }
     );
 
     if (!customer) {
       return res.status(404).json({
-        message: "Customer not found",
+        message: "Customer not found.",
       });
     }
 
-    res.json(customer);
+    return res.status(200).json(customer);
   } catch (error) {
-    res.status(400).json({
-      message: error.message,
+    return res.status(400).json({
+      message: "Failed to update customer.",
     });
   }
 });
 
-
-// Update an order
-app.put("/api/orders/:id", async (req, res) => {
-  try {
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-
-    if (!order) {
-      return res.status(404).json({
-        message: "Order not found",
-      });
-    }
-
-    res.json(order);
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
-  }
-});
-
-
-// Delete a customer
-app.delete("/api/customers/:id", async (req, res) => {
+app.delete("/api/customers/:id", protect, async (req, res) => {
   try {
     const customer = await Customer.findByIdAndDelete(req.params.id);
 
     if (!customer) {
       return res.status(404).json({
-        message: "Customer not found",
+        message: "Customer not found.",
       });
     }
 
-    res.json({
-      message: "Customer deleted successfully",
-      customer,
+    return res.status(200).json({
+      message: "Customer deleted successfully.",
     });
   } catch (error) {
-    res.status(400).json({
-      message: error.message,
+    return res.status(400).json({
+      message: "Failed to delete customer.",
     });
   }
 });
 
+// --------------------------------------------------
+// Orders - protected routes
+// --------------------------------------------------
+app.get("/api/orders", protect, async (req, res) => {
+  try {
+    const orders = await Order.find();
+    return res.status(200).json(orders);
+  } catch (error) {
+    console.error("Fetch orders error:", error.message);
 
-// Delete an order
-app.delete("/api/orders/:id", async (req, res) => {
+    return res.status(500).json({
+      message: "Failed to fetch orders.",
+    });
+  }
+});
+
+app.get("/api/orders/:id", protect, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found.",
+      });
+    }
+
+    return res.status(200).json(order);
+  } catch (error) {
+    return res.status(400).json({
+      message: "Invalid order ID.",
+    });
+  }
+});
+
+app.post("/api/orders", protect, async (req, res) => {
+  try {
+    const order = await Order.create(req.body);
+
+    return res.status(201).json(order);
+  } catch (error) {
+    console.error("Create order error:", error.message);
+
+    return res.status(400).json({
+      message: "Failed to create order.",
+    });
+  }
+});
+
+app.put("/api/orders/:id", protect, async (req, res) => {
+  try {
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found.",
+      });
+    }
+
+    return res.status(200).json(order);
+  } catch (error) {
+    return res.status(400).json({
+      message: "Failed to update order.",
+    });
+  }
+});
+
+app.delete("/api/orders/:id", protect, async (req, res) => {
   try {
     const order = await Order.findByIdAndDelete(req.params.id);
 
     if (!order) {
       return res.status(404).json({
-        message: "Order not found",
+        message: "Order not found.",
       });
     }
 
-    res.json({
-      message: "Order deleted successfully",
-      order,
+    return res.status(200).json({
+      message: "Order deleted successfully.",
     });
   } catch (error) {
-    res.status(400).json({
-      message: error.message,
+    return res.status(400).json({
+      message: "Failed to delete order.",
     });
   }
 });
 
-
+// --------------------------------------------------
 // Start server
-const PORT = process.env.PORT || 5000;
-
+// --------------------------------------------------
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
-
