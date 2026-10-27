@@ -1,16 +1,23 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const Customer = require("./models/Customer");
 const Order = require("./models/Order");
+const User = require("./models/User");
 
 dotenv.config();
 
 const app = express();
 
+const JWT_SECRET = process.env.JWT_SECRET || "janani_localbiz_auth_secret_2026";
+
 app.use(express.json());
 
+
+// MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
@@ -28,6 +35,108 @@ app.get("/", (req, res) => {
   });
 });
 
+
+// =====================================================
+// AUTHENTICATION
+// =====================================================
+
+// Register a new user
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        message: "Username and password are required",
+      });
+    }
+
+    const existingUser = await User.findOne({ username });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Username already exists",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      username,
+      password: hashedPassword,
+    });
+
+    res.status(201).json({
+      message: "User registered successfully",
+      user: {
+        id: user._id,
+        username: user.username,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
+
+
+// Login user
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        message: "Username and password are required",
+      });
+    }
+
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid username or password",
+      });
+    }
+
+    const passwordMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!passwordMatch) {
+      return res.status(401).json({
+        message: "Invalid username or password",
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        username: user.username,
+      },
+      JWT_SECRET,
+      {
+        expiresIn: "1h",
+      }
+    );
+
+    res.json({
+      message: "Login successful",
+      token,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
+
+
+// =====================================================
+// CUSTOMER APIs
+// =====================================================
 
 // Get all customers
 app.get("/api/customers", async (req, res) => {
@@ -229,3 +338,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
