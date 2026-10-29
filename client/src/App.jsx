@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { GoogleLogin } from "@react-oauth/google";
 
 const API_URL = "http://localhost:5000/api/customers";
+const GOOGLE_API_URL = "http://localhost:5000/api/auth/google";
 
 function App() {
   const [customers, setCustomers] = useState([]);
@@ -19,19 +21,125 @@ function App() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // Check whether a user is already logged in
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    Boolean(localStorage.getItem("token"))
+  );
+
+  // Load saved user information
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem("user");
+
+    if (!savedUser) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(savedUser);
+    } catch {
+      return null;
+    }
+  });
+
+  // --------------------------------------------------
+  // Google Login
+  // --------------------------------------------------
+  const handleGoogleLogin = async (credentialResponse) => {
+    try {
+      setError("");
+      setMessage("");
+
+      if (!credentialResponse?.credential) {
+        throw new Error("Google did not return a credential.");
+      }
+
+      const response = await fetch(GOOGLE_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          credential: credentialResponse.credential,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Google login failed");
+      }
+
+      // Store JWT token
+      localStorage.setItem("token", data.token);
+
+      // Store logged-in user
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      setUser(data.user);
+      setIsAuthenticated(true);
+      setMessage("Google login successful!");
+    } catch (err) {
+      console.error("Google login error:", err);
+      setError(err.message || "Google login failed");
+    }
+  };
+
+  // --------------------------------------------------
+  // Google Login Error
+  // --------------------------------------------------
+  const handleGoogleLoginError = () => {
+    setError("Google login failed. Please try again.");
+  };
+
+  // --------------------------------------------------
+  // Logout
+  // --------------------------------------------------
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
+    setUser(null);
+    setIsAuthenticated(false);
+    setCustomers([]);
+    setEditingCustomer(null);
+    setMessage("");
+    setError("");
+  };
+
+  // --------------------------------------------------
   // Fetch all customers
+  // --------------------------------------------------
   const fetchCustomers = async () => {
     try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setIsAuthenticated(false);
+        return;
+      }
+
       setLoading(true);
       setError("");
 
-      const response = await fetch(API_URL);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch customers");
-      }
+      const response = await fetch(API_URL, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          handleLogout();
+          throw new Error("Session expired. Please login again.");
+        }
+
+        throw new Error(
+          data.message || "Failed to fetch customers"
+        );
+      }
+
       setCustomers(data);
     } catch (err) {
       setError(err.message);
@@ -40,12 +148,20 @@ function App() {
     }
   };
 
-  // Load customers when the page opens
+  // --------------------------------------------------
+  // Load customers after authentication
+  // --------------------------------------------------
   useEffect(() => {
-    fetchCustomers();
-  }, []);
+    if (isAuthenticated) {
+      fetchCustomers();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
+  // --------------------------------------------------
   // Start editing a customer
+  // --------------------------------------------------
   const handleEdit = (customer) => {
     setEditingCustomer(customer);
 
@@ -67,7 +183,9 @@ function App() {
     });
   };
 
+  // --------------------------------------------------
   // Handle form input changes
+  // --------------------------------------------------
   const handleChange = (event) => {
     const { name, value } = event.target;
 
@@ -77,7 +195,9 @@ function App() {
     }));
   };
 
+  // --------------------------------------------------
   // Update customer
+  // --------------------------------------------------
   const handleUpdate = async (event) => {
     event.preventDefault();
 
@@ -89,12 +209,20 @@ function App() {
       setError("");
       setMessage("");
 
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        handleLogout();
+        throw new Error("Please login again.");
+      }
+
       const response = await fetch(
         `${API_URL}/${editingCustomer._id}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             name: formData.name,
@@ -110,7 +238,14 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to update customer");
+        if (response.status === 401) {
+          handleLogout();
+          throw new Error("Session expired. Please login again.");
+        }
+
+        throw new Error(
+          data.message || "Failed to update customer"
+        );
       }
 
       setMessage("Customer updated successfully!");
@@ -132,7 +267,9 @@ function App() {
     }
   };
 
+  // --------------------------------------------------
   // Cancel editing
+  // --------------------------------------------------
   const handleCancel = () => {
     setEditingCustomer(null);
 
@@ -149,7 +286,9 @@ function App() {
     setError("");
   };
 
+  // --------------------------------------------------
   // Delete customer
+  // --------------------------------------------------
   const handleDelete = async (customerId) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this customer?"
@@ -163,17 +302,34 @@ function App() {
       setError("");
       setMessage("");
 
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        handleLogout();
+        throw new Error("Please login again.");
+      }
+
       const response = await fetch(
         `${API_URL}/${customerId}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to delete customer");
+        if (response.status === 401) {
+          handleLogout();
+          throw new Error("Session expired. Please login again.");
+        }
+
+        throw new Error(
+          data.message || "Failed to delete customer"
+        );
       }
 
       setMessage("Customer deleted successfully!");
@@ -188,6 +344,76 @@ function App() {
     }
   };
 
+  // --------------------------------------------------
+  // Login screen
+  // --------------------------------------------------
+  if (!isAuthenticated) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#f4f6f8",
+          padding: "20px",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "40px",
+            borderRadius: "12px",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
+            textAlign: "center",
+            width: "380px",
+            maxWidth: "100%",
+          }}
+        >
+          <h1
+            style={{
+              marginBottom: "10px",
+            }}
+          >
+            LocalBiz Customer Analytics
+          </h1>
+
+          <p
+            style={{
+              color: "#666",
+              marginBottom: "30px",
+            }}
+          >
+            Sign in to access the customer dashboard
+          </p>
+
+          <GoogleLogin
+            onSuccess={handleGoogleLogin}
+            onError={handleGoogleLoginError}
+          />
+
+          {error && (
+            <div
+              style={{
+                backgroundColor: "#f8d7da",
+                color: "#721c24",
+                padding: "12px",
+                borderRadius: "6px",
+                marginTop: "20px",
+              }}
+            >
+              {error}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------
+  // Customer dashboard
+  // --------------------------------------------------
   return (
     <div
       style={{
@@ -203,24 +429,55 @@ function App() {
           margin: "0 auto",
         }}
       >
-        <h1
+        {/* Header */}
+        <div
           style={{
-            textAlign: "center",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "20px",
             marginBottom: "10px",
+            flexWrap: "wrap",
           }}
         >
-          LocalBiz Customer Analytics
-        </h1>
+          <div>
+            <h1
+              style={{
+                margin: 0,
+              }}
+            >
+              LocalBiz Customer Analytics
+            </h1>
 
-        <p
-          style={{
-            textAlign: "center",
-            color: "#666",
-            marginBottom: "30px",
-          }}
-        >
-          Customer Update & Delete Management
-        </p>
+            <p
+              style={{
+                color: "#666",
+                marginTop: "8px",
+              }}
+            >
+              Customer Update & Delete Management
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+            }}
+          >
+            <span>
+              Welcome, <strong>{user?.username || "User"}</strong>
+            </span>
+
+            <button
+              onClick={handleLogout}
+              style={logoutButtonStyle}
+            >
+              Logout
+            </button>
+          </div>
+        </div>
 
         {/* Success Message */}
         {message && (
@@ -276,6 +533,7 @@ function App() {
               >
                 <div>
                   <label>Name</label>
+
                   <input
                     type="text"
                     name="name"
@@ -288,6 +546,7 @@ function App() {
 
                 <div>
                   <label>Email</label>
+
                   <input
                     type="email"
                     name="email"
@@ -300,6 +559,7 @@ function App() {
 
                 <div>
                   <label>Phone</label>
+
                   <input
                     type="text"
                     name="phone"
@@ -311,6 +571,7 @@ function App() {
 
                 <div>
                   <label>Total Orders</label>
+
                   <input
                     type="number"
                     name="totalOrders"
@@ -323,6 +584,7 @@ function App() {
 
                 <div>
                   <label>Total Spent</label>
+
                   <input
                     type="number"
                     name="totalSpent"
@@ -335,6 +597,7 @@ function App() {
 
                 <div>
                   <label>Segment</label>
+
                   <select
                     name="segment"
                     value={formData.segment}
@@ -343,13 +606,18 @@ function App() {
                   >
                     <option value="New">New</option>
                     <option value="Regular">Regular</option>
-                    <option value="High Value">High Value</option>
+                    <option value="High Value">
+                      High Value
+                    </option>
                   </select>
                 </div>
               </div>
 
               <div style={{ marginTop: "20px" }}>
-                <button type="submit" style={updateButtonStyle}>
+                <button
+                  type="submit"
+                  style={updateButtonStyle}
+                >
                   Update Customer
                 </button>
 
@@ -449,7 +717,9 @@ function App() {
 
                       <td style={tableCellStyle}>
                         <button
-                          onClick={() => handleEdit(customer)}
+                          onClick={() =>
+                            handleEdit(customer)
+                          }
                           style={editButtonStyle}
                         >
                           Edit
@@ -475,6 +745,10 @@ function App() {
     </div>
   );
 }
+
+// --------------------------------------------------
+// Styles
+// --------------------------------------------------
 
 const inputStyle = {
   width: "100%",
@@ -526,6 +800,15 @@ const deleteButtonStyle = {
 const refreshButtonStyle = {
   padding: "8px 15px",
   backgroundColor: "#6c757d",
+  color: "white",
+  border: "none",
+  borderRadius: "5px",
+  cursor: "pointer",
+};
+
+const logoutButtonStyle = {
+  padding: "8px 15px",
+  backgroundColor: "#dc3545",
   color: "white",
   border: "none",
   borderRadius: "5px",
