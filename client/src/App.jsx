@@ -3,6 +3,7 @@ import { GoogleLogin } from "@react-oauth/google";
 
 const API_URL = "http://localhost:5000/api/customers";
 const GOOGLE_API_URL = "http://localhost:5000/api/auth/google";
+const UPLOAD_API_URL = "http://localhost:5000/api/upload";
 
 function App() {
   const [customers, setCustomers] = useState([]);
@@ -20,6 +21,11 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  // File upload states
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   // Check whether a user is already logged in
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -102,8 +108,69 @@ function App() {
     setIsAuthenticated(false);
     setCustomers([]);
     setEditingCustomer(null);
+    setSelectedFile(null);
+    setUploadedFile(null);
     setMessage("");
     setError("");
+  };
+
+  // --------------------------------------------------
+  // File Upload
+  // --------------------------------------------------
+  const handleFileUpload = async (event) => {
+    event.preventDefault();
+
+    if (!selectedFile) {
+      setError("Please select a file first.");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setError("");
+      setMessage("");
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        handleLogout();
+        throw new Error("Please login again.");
+      }
+
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const response = await fetch(UPLOAD_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          handleLogout();
+          throw new Error("Session expired. Please login again.");
+        }
+
+        throw new Error(data.message || "File upload failed.");
+      }
+
+      setUploadedFile(data.file);
+      setMessage("File uploaded successfully!");
+      setSelectedFile(null);
+
+      // Reset the file input
+      event.target.reset();
+    } catch (err) {
+      console.error("File upload error:", err);
+      setError(err.message || "File upload failed.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   // --------------------------------------------------
@@ -151,14 +218,16 @@ function App() {
   // --------------------------------------------------
   // Load customers after authentication
   // --------------------------------------------------
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchCustomers();
-    } else {
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
+useEffect(() => {
+  if (!isAuthenticated) {
+    return;
+  }
 
+  // Fetch customers after authentication
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  fetchCustomers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isAuthenticated]);
   // --------------------------------------------------
   // Start editing a customer
   // --------------------------------------------------
@@ -508,6 +577,100 @@ function App() {
             {error}
           </div>
         )}
+
+        {/* File Upload */}
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "25px",
+            borderRadius: "10px",
+            marginBottom: "30px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          }}
+        >
+          <h2>File Upload</h2>
+
+          <p
+            style={{
+              color: "#666",
+              marginBottom: "20px",
+            }}
+          >
+            Upload a file to the LocalBiz Customer Analytics application.
+          </p>
+
+          <form onSubmit={handleFileUpload}>
+            <input
+              type="file"
+              onChange={(event) => {
+                setSelectedFile(event.target.files[0] || null);
+              }}
+              style={{
+                marginBottom: "15px",
+                display: "block",
+              }}
+            />
+
+            {selectedFile && (
+              <p>
+                Selected file:{" "}
+                <strong>{selectedFile.name}</strong>
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={uploading}
+              style={{
+                padding: "10px 18px",
+                backgroundColor: uploading
+                  ? "#6c757d"
+                  : "#198754",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                cursor: uploading
+                  ? "not-allowed"
+                  : "pointer",
+              }}
+            >
+              {uploading ? "Uploading..." : "Upload File"}
+            </button>
+          </form>
+
+          {uploadedFile && (
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "15px",
+                backgroundColor: "#e8f5e9",
+                borderRadius: "6px",
+              }}
+            >
+              <h3>Uploaded File</h3>
+
+              <p>
+                <strong>Name:</strong>{" "}
+                {uploadedFile.originalName}
+              </p>
+
+              <p>
+                <strong>Size:</strong>{" "}
+                {uploadedFile.size} bytes
+              </p>
+
+              <p>
+                <strong>Type:</strong>{" "}
+                {uploadedFile.mimetype}
+              </p>
+
+              <p>
+                <strong>Path:</strong>{" "}
+                {uploadedFile.path}
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Update Form */}
         {editingCustomer && (
