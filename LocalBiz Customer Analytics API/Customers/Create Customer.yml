@@ -1,0 +1,24 @@
+info:
+  name: Create Customer
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: http://localhost:5000/api/customers
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Janani New",
+        "email": "janani.new@example.com",
+        "phone": "9876543210"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

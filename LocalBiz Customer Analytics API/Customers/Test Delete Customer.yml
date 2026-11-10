@@ -1,0 +1,24 @@
+info:
+  name: Test Delete Customer
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: http://localhost:5000/api/customers/6ab2770b0bd68f2e1212c8ce
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Janani Updated",
+        "email": "janani.updated@example.com",
+        "phone": "9940584378"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
