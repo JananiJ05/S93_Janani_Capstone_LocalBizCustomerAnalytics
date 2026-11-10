@@ -1,0 +1,23 @@
+info:
+  name: Update Order
+  type: http
+  seq: 4
+
+http:
+  method: PUT
+  url: http://localhost:5000/api/orders/6af29dd8baa00af6bfe6b26d
+  body:
+    type: json
+    data: |-
+      {
+        "amount": 4000,
+        "status": "Completed"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

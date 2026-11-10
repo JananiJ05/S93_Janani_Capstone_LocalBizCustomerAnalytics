@@ -1,0 +1,25 @@
+info:
+  name: Update Customer
+  type: http
+  seq: 3
+
+http:
+  method: PUT
+  url: http://localhost:5000/api/customers/6ab2770b0bd68f2e1212c8ce
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Janani Updated",
+        "email": "janani.updated@example.com",
+        "phone": "9940584378"
+      }
+  auth:
+    type: bearer
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,0 +1,9 @@
+info:
+  name: Orders
+  type: folder
+  seq: 3
+
+request:
+  auth:
+    type: bearer
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhZTA4NDRkOTdhOWUwOWVjYzdkYjQ2OSIsInVzZXJuYW1lIjoiamFuYW5pIiwiaWF0IjoxNzk0Mjg0NzkyLCJleHAiOjE3OTQyODgzOTJ9._H-45ca2iYkClG9pZo0lC9eIWzOOQbjSDvtL7oS4FDM

@@ -1,0 +1,24 @@
+info:
+  name: Create an Order
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://localhost:5000/api/orders
+  body:
+    type: json
+    data: |-
+      {
+        "customer": "6af291a38acfef4aa236f675",
+        "amount": 3000,
+        "status": "Pending"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
